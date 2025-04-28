@@ -6,12 +6,13 @@ from utils import NeuralNetwork
 
 
 class PINN:
-    def __init__(self, layers, ss, N_phys=10, N_dual=10, T=5, seed=1234):
+    def __init__(self, layers, ss, N_phys=10, N_dual=10, T=5, seed=1235):
         self.x_hat = NeuralNetwork([1] + layers + [ss.n], seed=seed)
         self.n = ss.n
         self.optimizer_primal = tf.keras.optimizers.Adam(learning_rate=1e-3)
         self.optimizer_dual = tf.keras.optimizers.Adam(learning_rate=1e-3)
-        self.weight = tf.Variable(0.0, dtype=self.x_hat.dtype)
+        self.weight = tf.Variable(1.0, dtype=self.x_hat.dtype)
+        # self.weight = 1
         self.N_dual = N_dual
         self.N_phys = N_phys
         self.T = T
@@ -47,21 +48,52 @@ class PINN:
             grads = tape.gradient(x_hat_tf, t)
             dx_hat_tf.append(tf.reshape(grads, (1, -1)))
         dx_hat_tf = tf.concat(dx_hat_tf, 0)
-        residual = None
+        residual = dx_hat_tf - self.f(self(t)) - self.g(self(t)) @ self.u(t)
         return residual
 
     def get_mse_data(self):
-        return 0.0
+        
+        mse = tf.reduce_mean(
+            tf.reduce_mean(
+                tf.square(
+                    self.y(self.data[0]) - self.data[1]
+                ),
+                axis=1,
+            )
+        )
+        
+        return mse
 
     def get_mse_residual(self):
-        return 0.0
+        
+        mse_residual = tf.reduce_mean(
+            tf.reduce_mean(
+                tf.square(
+                    self.get_residual(self.t_tf)
+                ),
+                axis=1,
+            )
+        )
+        if mse_residual is not None:
+            return mse_residual
+        else:
+            # If residual is None, return a large value to penalize the cost
+            return 1e6
 
     # @tf.function
     def get_cost(self):
         return self.get_mse_data() + self.weight * self.get_mse_residual()
 
-    # @tf.function
+    @tf.function
     def primal_update(self):
+        
+        with tf.GradientTape() as tape:
+            cost = self.get_cost()
+            grads = tape.gradient(cost, self.x_hat.trainable_variables)
+            self.optimizer_primal.apply_gradients(
+                zip(grads, self.x_hat.trainable_variables)
+            )
+
         pass
 
     # @tf.function
