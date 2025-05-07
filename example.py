@@ -55,6 +55,7 @@ plt.plot(losses)
 plt.yscale("log")
 plt.xlabel("Epoch")
 plt.ylabel("Loss value")
+plt.title("Training Loss")
 plt.grid()
 
 plt.figure()

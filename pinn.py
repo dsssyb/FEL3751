@@ -6,7 +6,7 @@ from utils import NeuralNetwork
 
 
 class PINN:
-    def __init__(self, layers, ss, N_phys=10, N_dual=10, T=5, seed=1235):
+    def __init__(self, layers, ss, N_phys=10, N_dual=10, T=5, seed=1234):
         self.x_hat = NeuralNetwork([1] + layers + [ss.n], seed=seed)
         self.n = ss.n
         self.optimizer_primal = tf.keras.optimizers.Adam(learning_rate=1e-3)
@@ -23,7 +23,7 @@ class PINN:
         self.resample()
 
     def set_data(self, data, u):
-        self.data = data[0], data[1]
+        self.data = data[0], data[1]  # data[0] is t, data[1] is y
         self.u = u
 
     def resample(self):
@@ -98,6 +98,13 @@ class PINN:
 
     # @tf.function
     def dual_update(self):
+        
+        with tf.GradientTape() as tape:
+            cost = self.get_cost()
+            grads = tape.gradient(cost, [self.weight])
+            self.optimizer_dual.apply_gradients(zip(grads, [self.weight]))
+            self.weight.assign(tf.clip_by_value(self.weight, 0.0, 1.0))
+        
         pass
 
     def train(self, epochs=3000):

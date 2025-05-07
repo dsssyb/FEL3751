@@ -39,7 +39,7 @@ class NeuralNetwork(tf.Module):
     def __init__(
         self,
         layers,
-        bias=True,
+        bias=True, # whether to include bias in the layers
         in_phi=tf.tanh,
         phi=tf.identity,
         output_dim=None,
